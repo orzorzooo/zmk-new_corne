@@ -118,6 +118,8 @@
             key-positions = <0 1>;
             bindings = <&kp ESC>;
         };
+    };
+
     conditional_layers {
         compatible = "zmk,conditional-layers";
         tri_layer {
