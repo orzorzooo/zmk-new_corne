@@ -37,6 +37,48 @@
             bindings = <&kp LEFT_SHIFT>, <&kp CAPS>;
         };
 
+        td_lbrc: td_lbrc {
+            compatible = "zmk,behavior-tap-dance";
+            display-name = "LBRC/RBRC Tap Dance";
+            #binding-cells = <0>;
+            bindings = <&kp LBRC>, <&kp RBRC>;
+        };
+
+        td_lpar: td_lpar {
+            compatible = "zmk,behavior-tap-dance";
+            display-name = "LPAR/RPAR Tap Dance";
+            #binding-cells = <0>;
+            bindings = <&kp LPAR>, <&kp RPAR>;
+        };
+
+        td_lbkt: td_lbkt {
+            compatible = "zmk,behavior-tap-dance";
+            display-name = "LBKT/RBKT Tap Dance";
+            #binding-cells = <0>;
+            bindings = <&kp LBKT>, <&kp RBKT>;
+        };
+
+        bs_bslh: bs_bslh {
+            compatible = "zmk,behavior-mod-morph";
+            #binding-cells = <0>;
+            bindings = <&kp BSPC>, <&kp BSLH>;
+            mods = <(MOD_RSFT)>;
+        };
+
+        semi_dqt: semi_dqt {
+            compatible = "zmk,behavior-mod-morph";
+            #binding-cells = <0>;
+            bindings = <&kp SEMI>, <&kp DQT>;
+            mods = <(MOD_RSFT)>;
+        };
+
+        td_comma_dun: td_comma_dun {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <130>;
+            bindings = <&kp COMMA>, <&kp BSLH>;
+        };
+
         tab_tilde: tab_tilde {
             compatible = "zmk,behavior-mod-morph";
             #binding-cells = <0>;
@@ -89,29 +131,6 @@
             key-positions = <1 15 29>;
         };
 
-        combo_lbrc {
-            timeout-ms = <50>;
-            key-positions = <3 16>;
-            bindings = <&kp LBRC>;
-        };
-
-        combo_rbrc {
-            timeout-ms = <50>;
-            key-positions = <9 24>;
-            bindings = <&kp RBRC>;
-        };
-
-        combo_lpar {
-            timeout-ms = <50>;
-            key-positions = <4 17>;
-            bindings = <&kp LPAR>;
-        };
-
-        combo_rpar {
-            timeout-ms = <50>;
-            key-positions = <8 23>;
-            bindings = <&kp RPAR>;
-        };
 
         combo_esc {
             timeout-ms = <50>;
@@ -134,9 +153,9 @@
         default_layer {
             display-name = "QWERTY";
             bindings = <
-&tab_tilde &kp Q  &kp W  &kp E        &r_screenshot &kp T                                   &kp UP      &kp Y  &kp U  &kp I      &kp O    &kp P          &kp BSPC
-&ctrl_tab LCTRL LC(SPACE) &kp A  &kp S  &kp D        &kp F    &kp G                          &kp LEFT  &kp ENTER   &kp RIGHT &kp H  &kp J  &kp K      &kp L    &kp SEMI       &kp ENTER
-&kp LSHIFT &kp Z  &kp X  &kp C        &kp V    &kp B        &kp SPACE                   &kp DOWN    &kp N  &kp M  &kp COMMA  &kp DOT  &kp FSLH       &kp RSHIFT
+&tab_tilde &kp Q  &kp W  &kp E        &r_screenshot &kp T                                   &kp UP      &kp Y  &kp U  &kp I      &kp O    &kp P          &bs_bslh
+&ctrl_tab LCTRL LC(SPACE) &kp A  &kp S  &kp D        &kp F    &kp G                          &kp LEFT  &kp ENTER   &kp RIGHT &kp H  &kp J  &kp K      &kp L    &semi_dqt      &kp ENTER
+&kp LSHIFT &kp Z  &kp X  &kp C        &kp V    &kp B        &kp SPACE                   &kp DOWN    &kp N  &kp M  &td_comma_dun  &kp DOT  &kp FSLH       &kp RSHIFT
                          &kp LEFT_ALT &kp LGUI &kp SPACE                                            &mo 2  &kp SPACE &mo 1
             >;
         
@@ -158,10 +177,10 @@
         raise_layer {
             display-name = "layer2";
             bindings = <
-&trans     &kp EXCL  &kp AT &kp HASH     &kp DLLR &kp PRCNT                                 &trans      &kp CARET &kp AMPS &kp STAR   &trans   &trans         &trans
-&trans     &trans    &trans &trans       &trans   &trans                          &trans    &trans      &trans    &mmv MOVE_LEFT &mmv MOVE_DOWN &mmv MOVE_UP &mmv MOVE_RIGHT &trans         &trans
-&trans     &trans    &trans &trans       &trans   &trans       &trans                       &trans               &mkp LCLK &mkp RCLK &kp C_VOL_DN &kp C_VOL_UP   &kp C_MUTE     &trans
-                         &trans       &trans   &trans                                               &trans   &trans   &trans
+&trans     &kp EXCL  &kp AT    &kp HASH     &kp DLLR &td_lbrc                                 &trans      &kp N7       &kp N8         &kp N9       &kp PLUS        &kp STAR       &trans
+&trans     &kp PRCNT &kp CARET &kp AMPS     &kp STAR &td_lpar                        &trans    &trans      &trans    &kp N4       &kp N5         &kp N6       &kp MINUS       &kp EQUAL      &trans
+&trans     &trans    &trans    &trans       &kp MINUS &kp PLUS     &kp N0                       &trans               &kp N1       &kp N2         &kp N3       &kp DOT         &trans         &trans
+                         &kp C_VOL_DN &kp C_VOL_UP &kp C_MUTE                                           &trans   &kp N0       &trans
             >;
 
             sensor-bindings = <&inc_dec_kp PG_UP PG_DN>;
@@ -171,9 +190,9 @@
             display-name = "layer3";
             bindings = <
 &trans     &kp F1       &kp F2       &kp F3       &kp F4   &kp F5                                   &trans      &kp F6     &kp F7         &kp F8         &kp F9          &kp F10        &kp F11
-&trans     &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &trans   &trans                         &trans    &trans      &trans    &trans     &trans         &trans         &trans          &trans         &trans
+&trans     &trans &trans &trans &trans   &trans                         &trans    &trans      &trans    &trans     &trans         &trans         &trans          &trans         &trans
 &trans     &trans       &trans       &trans       &trans   &trans       &trans                      &trans               &trans     &trans         &trans         &trans          &bt BT_CLR_ALL &trans
-                                     &trans       &trans   &trans                                                        &trans     &trans         &trans
+                                     &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2                                                        &trans     &trans         &trans
             >;
 
             sensor-bindings = <&inc_dec_kp PG_UP PG_DN>;
