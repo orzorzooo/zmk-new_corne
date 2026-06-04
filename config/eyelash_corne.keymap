@@ -107,6 +107,48 @@
             bindings = <&kp R>, <&r_shift_screenshot>;
             mods = <(MOD_LGUI)>;
         };
+
+        // Cmd + Q -> Cmd + 1 / Double Cmd + Q -> Cmd + Q
+        td_cmd_q: td_cmd_q {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <200>;
+            bindings = <&kp N1>, <&kp Q>;
+        };
+        q_cmd_morph: q_cmd_morph {
+            compatible = "zmk,behavior-mod-morph";
+            #binding-cells = <0>;
+            bindings = <&kp Q>, <&td_cmd_q>;
+            mods = <(MOD_LGUI|MOD_RGUI)>;
+        };
+
+        // Cmd + W -> Cmd + 2 / Double Cmd + W -> Cmd + W
+        td_cmd_w: td_cmd_w {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <200>;
+            bindings = <&kp N2>, <&kp W>;
+        };
+        w_cmd_morph: w_cmd_morph {
+            compatible = "zmk,behavior-mod-morph";
+            #binding-cells = <0>;
+            bindings = <&kp W>, <&td_cmd_w>;
+            mods = <(MOD_LGUI|MOD_RGUI)>;
+        };
+
+        // Cmd + E -> Cmd + 3 / Double Cmd + E -> Cmd + E
+        td_cmd_e: td_cmd_e {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <200>;
+            bindings = <&kp N3>, <&kp E>;
+        };
+        e_cmd_morph: e_cmd_morph {
+            compatible = "zmk,behavior-mod-morph";
+            #binding-cells = <0>;
+            bindings = <&kp E>, <&td_cmd_e>;
+            mods = <(MOD_LGUI|MOD_RGUI)>;
+        };
     };
 
     rgb_encoder: rgb_encoder {
@@ -153,7 +195,7 @@
         default_layer {
             display-name = "QWERTY";
             bindings = <
-&tab_tilde &kp Q  &kp W  &kp E        &r_screenshot &kp T                                   &kp UP      &kp Y  &kp U  &kp I      &kp O    &kp P          &bs_bslh
+&tab_tilde &q_cmd_morph  &w_cmd_morph  &e_cmd_morph        &r_screenshot &kp T                                   &kp UP      &kp Y  &kp U  &kp I      &kp O    &kp P          &bs_bslh
 &ctrl_tab LCTRL LC(SPACE) &kp A  &kp S  &kp D        &kp F    &kp G                          &kp LEFT  &kp ENTER   &kp RIGHT &kp H  &kp J  &kp K      &kp L    &semi_dqt      &kp ENTER
 &kp LSHIFT &kp Z  &kp X  &kp C        &kp V    &kp B        &kp SPACE                   &kp DOWN    &kp N  &kp M  &td_comma_dun  &kp DOT  &kp FSLH       &kp RSHIFT
                          &kp LEFT_ALT &kp LGUI &kp SPACE                                            &mo 2  &kp SPACE &mo 1
