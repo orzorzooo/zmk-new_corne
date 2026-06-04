@@ -30,13 +30,7 @@
 
 / {
     behaviors {
-        td0: td0 {
-            compatible = "zmk,behavior-tap-dance";
-            display-name = "Shift/Caps Lock Tap Dance";
-            #binding-cells = <0>;
-            bindings = <&kp LEFT_SHIFT>, <&kp CAPS>;
-        };
-
+      
         td_lbrc: td_lbrc {
             compatible = "zmk,behavior-tap-dance";
             display-name = "LBRC/RBRC Tap Dance";
@@ -51,12 +45,7 @@
             bindings = <&kp LPAR>, <&kp RPAR>;
         };
 
-        td_lbkt: td_lbkt {
-            compatible = "zmk,behavior-tap-dance";
-            display-name = "LBKT/RBKT Tap Dance";
-            #binding-cells = <0>;
-            bindings = <&kp LBKT>, <&kp RBKT>;
-        };
+     
 
         bs_bslh: bs_bslh {
             compatible = "zmk,behavior-mod-morph";
