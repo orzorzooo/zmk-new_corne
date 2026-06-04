@@ -113,7 +113,7 @@
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
             tapping-term-ms = <200>;
-            bindings = <&kp N1>, <&kp Q>;
+            bindings = <&kp LG(N1)>, <&kp LG(Q)>;
         };
         q_cmd_morph: q_cmd_morph {
             compatible = "zmk,behavior-mod-morph";
@@ -127,7 +127,7 @@
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
             tapping-term-ms = <200>;
-            bindings = <&kp N2>, <&kp W>;
+            bindings = <&kp LG(N2)>, <&kp LG(W)>;
         };
         w_cmd_morph: w_cmd_morph {
             compatible = "zmk,behavior-mod-morph";
@@ -141,7 +141,7 @@
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
             tapping-term-ms = <200>;
-            bindings = <&kp N3>, <&kp E>;
+            bindings = <&kp LG(N3)>, <&kp LG(E)>;
         };
         e_cmd_morph: e_cmd_morph {
             compatible = "zmk,behavior-mod-morph";
