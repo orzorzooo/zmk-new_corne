@@ -1,0 +1,5 @@
+if(CONFIG_ZMK_DISPLAY AND CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM AND NOT CONFIG_NICE_VIEW_WIDGET_STATUS)
+  zephyr_library()
+  zephyr_library_sources(src/corne_screen_status.c)
+  zephyr_library_sources(corne-screen-01.c)
+endif()
