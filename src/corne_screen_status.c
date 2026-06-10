@@ -9,7 +9,7 @@
 #include <zmk/events/split_peripheral_status_changed.h>
 #include <zmk/split/bluetooth/peripheral.h>
 
-LV_IMG_DECLARE(corne_screen_01);
+LV_IMG_DECLARE(corne_screen_2);
 
 struct corne_screen_state {
     bool connected;
@@ -23,8 +23,23 @@ static void corne_screen_update(struct corne_screen_state state) {
         return;
     }
 
-    char text[18];
-    snprintf(text, sizeof(text), "%s  %u%%", state.connected ? "BT" : "--", state.battery);
+    const char *battery_symbol;
+
+    if (state.battery > 95) {
+        battery_symbol = LV_SYMBOL_BATTERY_FULL;
+    } else if (state.battery > 65) {
+        battery_symbol = LV_SYMBOL_BATTERY_3;
+    } else if (state.battery > 35) {
+        battery_symbol = LV_SYMBOL_BATTERY_2;
+    } else if (state.battery > 5) {
+        battery_symbol = LV_SYMBOL_BATTERY_1;
+    } else {
+        battery_symbol = LV_SYMBOL_BATTERY_EMPTY;
+    }
+
+    char text[16];
+    snprintf(text, sizeof(text), "%s %s", state.connected ? LV_SYMBOL_WIFI : LV_SYMBOL_CLOSE,
+             battery_symbol);
     lv_label_set_text(status_label, text);
 }
 
@@ -56,12 +71,19 @@ lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_t *image = lv_img_create(screen);
 
 #if LVGL_VERSION_MAJOR >= 9
-    lv_image_set_src(image, &corne_screen_01);
+    lv_image_set_src(image, &corne_screen_2);
 #else
-    lv_img_set_src(image, &corne_screen_01);
+    lv_img_set_src(image, &corne_screen_2);
 #endif
 
     lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
+
+    lv_obj_t *status_bar = lv_obj_create(screen);
+    lv_obj_remove_style_all(status_bar);
+    lv_obj_set_size(status_bar, 160, 18);
+    lv_obj_set_style_bg_color(status_bar, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(status_bar, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_align(status_bar, LV_ALIGN_TOP_MID, 0, 0);
 
     status_label = lv_label_create(screen);
     lv_obj_set_style_text_color(status_label, lv_color_black(), LV_PART_MAIN);

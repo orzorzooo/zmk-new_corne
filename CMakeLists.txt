@@ -2,5 +2,5 @@ if(CONFIG_ZMK_DISPLAY AND CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM AND CONFIG_ZMK
   zephyr_library()
   zephyr_library_include_directories(${CMAKE_SOURCE_DIR}/include)
   zephyr_library_sources(src/corne_screen_status.c)
-  zephyr_library_sources(corne-screen-01.c)
+  zephyr_library_sources(corne_screen_02.c)
 endif()
