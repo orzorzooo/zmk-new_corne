@@ -80,10 +80,10 @@ lv_obj_t *zmk_display_status_screen(void) {
 
     lv_obj_t *status_bar = lv_obj_create(screen);
     lv_obj_remove_style_all(status_bar);
-    lv_obj_set_size(status_bar, 160, 18);
+    lv_obj_set_size(status_bar, 18, 68);
     lv_obj_set_style_bg_color(status_bar, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(status_bar, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_align(status_bar, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_align(status_bar, LV_ALIGN_RIGHT_MID, 0, 0);
 
     status_label = lv_label_create(screen);
     lv_obj_set_style_text_color(status_label, lv_color_black(), LV_PART_MAIN);
@@ -91,7 +91,8 @@ lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_set_style_bg_opa(status_label, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_pad_left(status_label, 2, LV_PART_MAIN);
     lv_obj_set_style_pad_right(status_label, 2, LV_PART_MAIN);
-    lv_obj_align(status_label, LV_ALIGN_TOP_RIGHT, -2, 0);
+    lv_obj_set_style_transform_angle(status_label, 900, LV_PART_MAIN);
+    lv_obj_align(status_label, LV_ALIGN_TOP_RIGHT, -1, 2);
     corne_screen_status_init();
 
     return screen;
