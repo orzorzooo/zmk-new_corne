@@ -1,5 +1,5 @@
 #include <lvgl.h>
-#include <stdio.h>
+#include <string.h>
 #include <zephyr/kernel.h>
 
 #include <zmk/battery.h>
@@ -11,36 +11,72 @@
 
 LV_IMG_DECLARE(corne_screen_2);
 
+#define STATUS_CANVAS_SIZE 68
+
 struct corne_screen_state {
     bool connected;
     uint8_t battery;
 };
 
-static lv_obj_t *status_label;
+static lv_obj_t *status_canvas;
+static lv_color_t status_cbuf[STATUS_CANVAS_SIZE * STATUS_CANVAS_SIZE];
+static lv_color_t status_cbuf_tmp[STATUS_CANVAS_SIZE * STATUS_CANVAS_SIZE];
+
+static void init_rect_dsc(lv_draw_rect_dsc_t *dsc, lv_color_t color) {
+    lv_draw_rect_dsc_init(dsc);
+    dsc->bg_color = color;
+}
+
+static void init_label_dsc(lv_draw_label_dsc_t *dsc) {
+    lv_draw_label_dsc_init(dsc);
+    dsc->color = lv_color_black();
+    dsc->font = &lv_font_montserrat_16;
+    dsc->align = LV_TEXT_ALIGN_RIGHT;
+}
+
+static void draw_battery(lv_obj_t *canvas, uint8_t battery) {
+    lv_draw_rect_dsc_t fg_dsc;
+    lv_draw_rect_dsc_t bg_dsc;
+    init_rect_dsc(&fg_dsc, lv_color_black());
+    init_rect_dsc(&bg_dsc, lv_color_white());
+
+    lv_canvas_draw_rect(canvas, 0, 2, 29, 12, &fg_dsc);
+    lv_canvas_draw_rect(canvas, 1, 3, 27, 10, &bg_dsc);
+    lv_canvas_draw_rect(canvas, 2, 4, (battery + 2) / 4, 8, &fg_dsc);
+    lv_canvas_draw_rect(canvas, 30, 5, 3, 6, &fg_dsc);
+    lv_canvas_draw_rect(canvas, 31, 6, 1, 4, &bg_dsc);
+}
+
+static void rotate_status_canvas(lv_obj_t *canvas) {
+    memcpy(status_cbuf_tmp, status_cbuf, sizeof(status_cbuf_tmp));
+
+    lv_img_dsc_t img = {
+        .header.cf = LV_IMG_CF_TRUE_COLOR,
+        .header.w = STATUS_CANVAS_SIZE,
+        .header.h = STATUS_CANVAS_SIZE,
+        .data = (void *)status_cbuf_tmp,
+    };
+
+    lv_canvas_fill_bg(canvas, lv_color_white(), LV_OPA_COVER);
+    lv_canvas_transform(canvas, &img, 900, LV_IMG_ZOOM_NONE, -1, 0, STATUS_CANVAS_SIZE / 2,
+                        STATUS_CANVAS_SIZE / 2, true);
+}
 
 static void corne_screen_update(struct corne_screen_state state) {
-    if (status_label == NULL) {
+    if (status_canvas == NULL) {
         return;
     }
 
-    const char *battery_symbol;
+    lv_draw_rect_dsc_t bg_dsc;
+    lv_draw_label_dsc_t label_dsc;
+    init_rect_dsc(&bg_dsc, lv_color_white());
+    init_label_dsc(&label_dsc);
 
-    if (state.battery > 95) {
-        battery_symbol = LV_SYMBOL_BATTERY_FULL;
-    } else if (state.battery > 65) {
-        battery_symbol = LV_SYMBOL_BATTERY_3;
-    } else if (state.battery > 35) {
-        battery_symbol = LV_SYMBOL_BATTERY_2;
-    } else if (state.battery > 5) {
-        battery_symbol = LV_SYMBOL_BATTERY_1;
-    } else {
-        battery_symbol = LV_SYMBOL_BATTERY_EMPTY;
-    }
-
-    char text[16];
-    snprintf(text, sizeof(text), "%s %s", state.connected ? LV_SYMBOL_WIFI : LV_SYMBOL_CLOSE,
-             battery_symbol);
-    lv_label_set_text(status_label, text);
+    lv_canvas_draw_rect(status_canvas, 0, 0, STATUS_CANVAS_SIZE, STATUS_CANVAS_SIZE, &bg_dsc);
+    draw_battery(status_canvas, state.battery);
+    lv_canvas_draw_text(status_canvas, 0, 0, STATUS_CANVAS_SIZE, &label_dsc,
+                        state.connected ? LV_SYMBOL_WIFI : LV_SYMBOL_CLOSE);
+    rotate_status_canvas(status_canvas);
 }
 
 static struct corne_screen_state corne_screen_get_state(const zmk_event_t *eh) {
@@ -78,21 +114,10 @@ lv_obj_t *zmk_display_status_screen(void) {
 
     lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
 
-    lv_obj_t *status_bar = lv_obj_create(screen);
-    lv_obj_remove_style_all(status_bar);
-    lv_obj_set_size(status_bar, 18, 68);
-    lv_obj_set_style_bg_color(status_bar, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(status_bar, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_align(status_bar, LV_ALIGN_RIGHT_MID, 0, 0);
-
-    status_label = lv_label_create(screen);
-    lv_obj_set_style_text_color(status_label, lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(status_label, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(status_label, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_pad_left(status_label, 2, LV_PART_MAIN);
-    lv_obj_set_style_pad_right(status_label, 2, LV_PART_MAIN);
-    lv_obj_set_style_transform_angle(status_label, 900, LV_PART_MAIN);
-    lv_obj_align(status_label, LV_ALIGN_TOP_RIGHT, -1, 2);
+    status_canvas = lv_canvas_create(screen);
+    lv_obj_align(status_canvas, LV_ALIGN_TOP_RIGHT, 0, 0);
+    lv_canvas_set_buffer(status_canvas, status_cbuf, STATUS_CANVAS_SIZE, STATUS_CANVAS_SIZE,
+                         LV_IMG_CF_TRUE_COLOR);
     corne_screen_status_init();
 
     return screen;
