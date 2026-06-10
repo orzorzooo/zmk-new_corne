@@ -15,12 +15,8 @@ lv_obj_t *zmk_display_status_screen(void) {
 
 #if LVGL_VERSION_MAJOR >= 9
     lv_image_set_src(image, &corne_screen_01);
-    lv_image_set_pivot(image, 34, 80);
-    lv_image_set_rotation(image, 900);
 #else
     lv_img_set_src(image, &corne_screen_01);
-    lv_img_set_pivot(image, 34, 80);
-    lv_img_set_angle(image, 900);
 #endif
 
     lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
