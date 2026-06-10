@@ -8,6 +8,8 @@ lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_set_size(screen, 160, 68);
     lv_obj_set_style_bg_color(screen, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(screen, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(screen, 1, LV_PART_MAIN);
 
     lv_obj_t *image = lv_img_create(screen);
 
