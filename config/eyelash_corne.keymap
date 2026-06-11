@@ -195,7 +195,7 @@
             bindings = <
 &tab_tilde              &q_cmd_morph    &w_cmd_morph    &e_cmd_morph    &r_screenshot   &kp T                                   &kp UP                      &kp Y  &kp U        &kp I      &kp O    &kp P          &bs_bslh
 &ctrl_tab 1 LC(SPACE)   &kp A           &kp S           &kp D           &kp F           &kp G                       &kp LEFT    &kp LCTRL   &kp RIGHT       &kp H  &kp J        &kp K      &kp L    &semi_dqt      &kp ENTER
-&kp LSHIFT              &kp Z           &kp X           &kp C           &kp V           &kp B        &kp C_MUTE                 &kp DOWN                    &kp N  &kp M        &td_comma_dun  &kp DOT  &kp FSLH       &kp RSHIFT
+&kp LSHIFT              &kp Z           &kp X           &kp C           &kp V           &kp B        &kp C_MUTE                 &kp DOWN                    &kp N  &kp M        &kp COMMA  &kp DOT  &kp FSLH       &kp RSHIFT
                         &kp LEFT_ALT    &kp LGUI        &td_spc_mo1                                                                                                  &mo 2  &kp SPACE    &mo 1
             >;
 
@@ -205,7 +205,7 @@
         lower_layer {
             display-name = "Nav&Num";
             bindings = <
-&trans     &trans &kp N7 &kp N8         &kp N9      &kp PLUS                                 &mmv MOVE_UP                       &kp EQUAL &kp STAR   &trans     &trans         &trans         &trans
+&trans     &trans &kp N7 &kp N8         &kp N9      &kp PLUS                                 &mmv MOVE_UP                       &kp EQUAL &kp STAR   &trans     &trans         &trans         &kp BSLH
 &trans     &trans &kp N4 &kp N5         &kp N6      &kp MINUS               &mmv MOVE_LEFT   &mkp LCLK      &mmv MOVE_RIGHT     &kp LEFT &kp DOWN    &kp UP     &kp RIGHT      &kp BACKSPACE  &trans
 &trans     &kp DOT &kp N1 &kp N2         &kp N3      &kp N0        &trans                    &mmv MOVE_DOWN                     &trans   &trans      &trans     &trans         &trans         &trans
                          &trans         &trans      &trans                                                                      &trans   &trans      &trans
