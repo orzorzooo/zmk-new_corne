@@ -203,22 +203,22 @@
         };
 
         lower_layer {
-            display-name = "Nav&Num";
+            display-name = "NavdfNum";
             bindings = <
-&trans     &trans   &trans &kp N7         &kp N8      &kp N9                                 &mmv MOVE_UP                       &kp GRAVE   &kp STAR   &trans     &trans         &trans         &kp BSLH
-&trans     &trans   &trans &kp N4         &kp N5      &kp N6               &mmv MOVE_LEFT   &mkp LCLK      &mmv MOVE_RIGHT      &kp LEFT    &kp DOWN   &kp UP     &kp RIGHT      &kp BACKSPACE  &trans
-&trans     &trans  &kp DOT &kp N1         &kp N2      &kp N3        &trans                    &mmv MOVE_DOWN                    &kp PLUS    &kp MINUS  &trans     &trans         &trans         &trans
-                         &trans         &trans      &kp N0                                                                      &trans   &trans      &trans
+&trans     &trans   &kp N7 &kp N8         &kp N9      &kp PLUS                               &mmv MOVE_UP                       &kp GRAVE   &kp STAR   &trans     &trans         &trans         &kp BSLH
+&trans     &trans   &kp N4 &kp N5         &kp N6      &kp MINUS            &mmv MOVE_LEFT   &mkp LCLK      &mmv MOVE_RIGHT      &kp LEFT    &kp DOWN   &kp UP     &kp RIGHT      &kp BACKSPACE  &trans
+&trans     &kp DOT  &kp N1 &kp N2         &kp N3      &kp N0        &trans                    &mmv MOVE_DOWN                    &kp EQUAL   &kp LS(MINUS)  &trans     &trans         &trans         &trans
+                         &trans         &trans      &trans                                                                      &trans   &trans      &trans
             >;
 
             sensor-bindings = <&rsr_vol &rsr_trans>;
         };
 
         raise_layer {
-            display-name = "symbol";
+            display-name = "SYMBOL";
             bindings = <
-&kp GRAVE  &kp EXCL  &kp AT    &kp HASH     &kp DLLR           &kp PLUS                                 &kp C_VOL_UP                           &kp CARET      &kp AMPS     &kp STAR       &trans    &trans       &kp BSLH
-&trans     &kp PRCNT &kp CARET &kp AMPS     &kp MINUS          &kp SQT                &kp C_PLAY_PAUSE  &kp C_MUTE    &kp C_PLAY_PAUSE         &kp LPAR       &kp RPAR     &trans       &trans    &kp BSLH     &trans
+&kp GRAVE  &kp EXCL  &kp AT    &kp HASH     &kp DLLR           &kp PLUS                                 &kp C_VOL_UP                           &kp CARET      &kp AMPS     &kp STAR     &trans    &trans         &kp BSLH
+&trans     &kp PRCNT &kp CARET &kp AMPS     &kp MINUS          &kp SQT                &kp C_PLAY_PAUSE  &kp C_MUTE    &kp C_PLAY_PAUSE         &kp LPAR       &kp RPAR     &trans       &trans    &kp SQT        &trans
 &trans     &trans    &trans    &trans       &kp LS(MINUS)      &trans     &trans                        &kp C_VOL_DN                           &kp LBKT       &kp RBKT     &trans       &trans    &kp QMARK      &trans
                          &trans &trans &trans                                                                                                  &trans         &trans       &trans
             >;
