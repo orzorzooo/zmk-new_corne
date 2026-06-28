@@ -1,0 +1,8 @@
+if(CONFIG_ZMK_DISPLAY AND CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM AND CONFIG_ZMK_SPLIT AND NOT CONFIG_ZMK_SPLIT_ROLE_CENTRAL AND NOT CONFIG_NICE_VIEW_WIDGET_STATUS)
+  zephyr_library()
+  zephyr_library_include_directories(${CMAKE_SOURCE_DIR}/include)
+  zephyr_library_sources(src/corne_screen_status.c)
+  zephyr_library_sources(src/Frame1.c)
+  zephyr_library_sources(src/Frame2.c)
+  zephyr_library_sources(src/Frame3.c)
+endif()
