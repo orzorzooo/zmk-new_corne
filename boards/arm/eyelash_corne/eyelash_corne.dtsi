@@ -92,9 +92,19 @@
         };
     };
 
+    split_inputs {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        tps43_split: tps43_split@0 {
+            compatible = "zmk,input-split";
+            reg = <0>;
+            device = <&tps43>;
+        };
+    };
+
     tps43_input: tps43_input {
         compatible = "zmk,input-listener";
-        device = <&tps43>;
+        device = <&tps43_split>;
     };
 
 
