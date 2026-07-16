@@ -9,6 +9,8 @@
 #include <nordic/nrf52840_qiaa.dtsi>
 #include <dt-bindings/led/led.h>
 #include <dt-bindings/zmk/matrix_transform.h>
+#include <dt-bindings/zmk/input_transform.h>
+#include <input/processors.dtsi>
 
 #include "eyelash_corne-layouts.dtsi"
 
@@ -105,6 +107,9 @@
     tps43_input: tps43_input {
         compatible = "zmk,input-listener";
         device = <&tps43_split>;
+        /* 這顆觸控板實測不吃 XY_CONFIG_0 的 switch/flip 暫存器寫入，
+         * 方向改在 central（左半）以軟體轉換：先交換 XY、再反轉最終 Y */
+        input-processors = <&zip_xy_transform (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)>;
     };
 
 
@@ -293,7 +298,5 @@ nice_view_spi: &spi0 {
 
         bottom-beta = <5>;
         stationary-threshold = <5>;
-
-        switch-xy;
     };
 };
