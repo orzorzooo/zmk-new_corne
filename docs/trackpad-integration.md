@@ -10,7 +10,7 @@
 | 分體角色 | 左半 = central（主控，跑 ZMK Studio）；右半 = peripheral |
 | 觸控板位置 | 右半，接 I2C1（SDA=P1.08、SCL=P0.24、RST=P1.04、RDY=P1.07），位址 `0x74` |
 | 事件轉送 | 右半透過 `zmk,input-split` 將指標事件轉送到左半 central |
-| 方向設定 | **改用軟體轉換**：central 端 listener 掛 `zip_xy_transform (XY_SWAP \| Y_INVERT)`；晶片暫存器旗標已全部移除（實測無效，見下） |
+| 方向設定 | Central 端軟體轉換：`zip_xy_transform Y_INVERT`（游標）+ `zip_scroll_transform Y_INVERT`（mac 自然捲動）；晶片旗標全關 |
 | 手勢 | 單指點擊=左鍵、雙指點擊=右鍵、press-and-hold（250ms）、雙軸自然捲動 |
 
 ## 架構總覽
@@ -37,7 +37,7 @@ TPS43 (右半 I2C1)
 
 ## 方向設定的原理（背景知識）
 
-> ⚠️ **本節描述的是驅動的設計原理，但實測本鍵盤這顆觸控板「不吃」這些暫存器設定**（見下一節）。實際的方向調整請一律使用 central 端的 `zip_xy_transform`。本節保留作為背景知識。
+> ℹ️ 晶片暫存器旗標經最終驗證**是有效的**（中途一度誤判無效，見下一節的過程記錄），但本專案的方向調整統一使用 central 端的 `zip_xy_transform`，晶片旗標保持全關 — 單一真相來源，避免兩層轉換互相疊加造成混亂。
 
 `switch-xy` / `flip-x` / `flip-y` **不是軟體轉換**：驅動在初始化時把這三個旗標寫進觸控板晶片的 `XY_CONFIG_0` 暫存器（位址 `0x0669`），之後晶片直接回報轉換後的座標。
 
@@ -56,51 +56,49 @@ TPS43 (右半 I2C1)
 
 實務上的另一個關鍵點：**改方向設定後，必須重刷「右半」韌體**。暫存器初始化發生在觸控板所在的右半；只刷左半（含 Studio 版）完全不會生效。
 
-### 本鍵盤的關鍵發現（2026-07-16 定案）：晶片方向暫存器無效
+### 方向校正全記錄與最終定案（2026-07-16）
 
-2026-07-16 當天依序建置並刷入四個版本（CI 紀錄：`faf3359` flip-y → `d141966` switch-xy → `042a637` flip-x → `a4a669d` switch-xy），其中 `flip-x` 與 `switch-xy` 兩版都做了嚴謹的雙軸測試，結果**完全相同**：
+**最終答案：感應器原生方向 = X 與螢幕一致、Y 相反。** 修正只需要反轉 Y：
 
-| 韌體（已確認刷入右半） | 手指往上 | 手指往右 |
-|---|---|---|
-| `flip-x`（042a637） | 游標往**右** | 游標往**下** |
-| `switch-xy`（a4a669d） | 游標往**右** | 游標往**下** |
-
-這兩種暫存器組態在數學上不可能產生相同行為 → 結論：**這顆觸控板不吃驅動寫入 `XY_CONFIG_0` 的 switch/flip 設定**（可能是韌體版本、NVM 設定覆蓋或寫入時序問題）。這也解釋了最早「改了沒有效果」的回報 — 那個觀察從頭到尾都是對的。
-
-**解法：放棄晶片暫存器，改用 ZMK input processor 在 central（左半）做軟體轉換。**
-
-固定行為為「游標反應 = 手指方向順時針轉 90 度」（上→右、右→下），修正 = 逆時針轉回：`新X = 舊Y`、`新Y = −舊X`。ZMK 的 `zip_xy_transform` 是先交換、再對交換後的軸反向（查證於 `input_processor_transform.c`），因此：
+- 晶片端（`tps43` 節點）：**不設任何方向旗標**（等效的晶片解是只加 `flip-y`，但本專案統一用軟體轉換）
+- Central 端（`tps43_input` listener）：
 
 ```dts
-tps43_input: tps43_input {
-    compatible = "zmk,input-listener";
-    device = <&tps43_split>;
-    input-processors = <&zip_xy_transform (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)>;
-};
+input-processors = <&zip_xy_transform INPUT_TRANSFORM_Y_INVERT>,
+                   <&zip_scroll_transform INPUT_TRANSFORM_Y_INVERT>;
 ```
 
-事件驗證：手指上（原送 X+）→ 交換成 Y+ → Y 反向 → 游標上 ✓；手指右（原送 Y+）→ 交換成 X+ → 游標右 ✓。
+`zip_xy_transform` 修游標方向；`zip_scroll_transform` 反轉 REL_WHEEL 讓雙指捲動符合 mac 自然捲動（雙指往上 = 頁面往下）。
 
-> **注意：input processor 跑在 central，所以這個修改要刷「左半」韌體才生效**（`eyelash_corne_studio_left` artifact）。右半不用重刷。
+**校正過程的曲折與教訓**（按時間順序）：
+
+1. 多輪 flip/switch 旗標迭代結果矛盾，一度誤判「晶片暫存器無效」— 實際原因是**其中一次測試的韌體沒有真的刷進右半**，兩次「不同設定」測到相同行為。
+2. 決定性證據：移除 `switch-xy` 的版本刷入右半後，raw 行為從「上→右、右→下」變成「上→下、右→右」，變化量精確等於移除一個軸交換 → **晶片暫存器其實有效**。
+3. 由 raw 行為（旗標全關）直接解出感應器原生方向：`M = [[1,0],[0,−1]]`（只有 Y 鏡像），修正 = 反轉 Y，一步到位。
+4. 過程中在 processor 掛過 `XY_SWAP | Y_INVERT`（基於「暫存器無效」的錯誤前提推導），刷左半後行為變成「上→右、右→上」，反推出 raw 已改變，才發現第 2 點。
+
+**教訓**：
+- 每次測試前，確認要測的那一半**真的刷了新韌體**（方向設定在右半晶片、processor 在左半，改哪層就刷哪半）。
+- 兩筆「不同設定、相同行為」的觀察 = 至少有一次刷機沒成功，先驗證刷機再懷疑程式。
+- 雙軸測試（手指往上游標往哪 + 手指往右游標往哪）是唯一可靠的觀察格式，「差 90 度」這種描述會因旋轉方向歧義誤導判斷。
 
 ### 未來校正 SOP
 
-方向不對時，一律調 `tps43_input` 的 `zip_xy_transform` 旗標（**改完刷左半**），不要動 `tps43` 節點的晶片旗標（本硬體無效）：
+方向不對時，一律調 `tps43_input` 上的 processor 旗標（**改完刷左半**）；`tps43` 晶片旗標雖然有效，但保持全關、單一真相來源在 processor 層：
 
 1. 做兩個單軸測試：手指往上游標往哪、手指往右游標往哪。
 2. 兩軸都對 → 完成。
 3. 只有左右相反 → 切換 `INPUT_TRANSFORM_X_INVERT`；只有上下相反 → 切換 `INPUT_TRANSFORM_Y_INVERT`。
 4. 差 90 度（上變左右、右變上下）→ 切換 `INPUT_TRANSFORM_XY_SWAP`，重測後用步驟 3 修掉殘餘反向。
 5. 全部相反（180 度）→ 同時切換兩個 INVERT。
-
-若之後發現**雙指捲動**的軸向也旋轉了（垂直捲動變水平），那是晶片手勢層的判定，屆時可在 listener 上對 wheel 事件另掛 `zip_scroll_transform` 處理。
+6. 捲動方向：調 `zip_scroll_transform` 的 `Y_INVERT`（垂直）/`X_INVERT`（水平）。
 
 ## 異動紀錄（trackpad 分支）
 
 | Commit | 內容 |
 |---|---|
-| （未 commit）2026-07-16 | **方向改用軟體轉換定案**：實測證明晶片 `XY_CONFIG_0` 暫存器寫入無效（`flip-x` 與 `switch-xy` 兩版行為完全相同），改在 central listener 掛 `zip_xy_transform (XY_SWAP \| Y_INVERT)`，並移除 `tps43` 節點所有方向旗標。**此修改需刷左半** |
-| `a4a669d` 等四筆 | 2026-07-16 當天的方向旗標迭代（flip-y / switch-xy / flip-x / switch-xy），最終證明晶片旗標無效，全數被軟體轉換方案取代 |
+| （未 commit）2026-07-16 | **方向與捲動定案**：解出感應器原生方向為「僅 Y 鏡像」，processor 改為 `zip_xy_transform Y_INVERT`，並新增 `zip_scroll_transform Y_INVERT`（mac 自然捲動）。**此修改需刷左半** |
+| `a4a669d` 等五筆 | 2026-07-16 當天的方向迭代（晶片旗標 flip-y / switch-xy / flip-x / switch-xy → processor XY_SWAP\|Y_INVERT），過程含一次「暫存器無效」誤判，完整記錄見「方向校正全記錄」一節 |
 | `ea4238d` | 設定順時針 90 度（保留 `switch-xy`、加 `flip-x`）— 已被上列變更取代 |
 | `fcfa977` | 加入 `zmk,input-split` 節點，讓 peripheral 的指標事件轉送到 central |
 | `2b597f4` | 全域啟用 input subsystem 與 Azoteq IQS5xx 驅動 |

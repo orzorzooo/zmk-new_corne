@@ -107,9 +107,11 @@
     tps43_input: tps43_input {
         compatible = "zmk,input-listener";
         device = <&tps43_split>;
-        /* 這顆觸控板實測不吃 XY_CONFIG_0 的 switch/flip 暫存器寫入，
-         * 方向改在 central（左半）以軟體轉換：先交換 XY、再反轉最終 Y */
-        input-processors = <&zip_xy_transform (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)>;
+        /* 感應器原生方向：X 與螢幕一致、Y 相反（晶片旗標全關時實測）。
+         * 方向統一在 central（左半）軟體轉換，晶片端 tps43 不設任何方向旗標。
+         * scroll 反轉 = mac 自然捲動方向 */
+        input-processors = <&zip_xy_transform INPUT_TRANSFORM_Y_INVERT>,
+                           <&zip_scroll_transform INPUT_TRANSFORM_Y_INVERT>;
     };
 
 
