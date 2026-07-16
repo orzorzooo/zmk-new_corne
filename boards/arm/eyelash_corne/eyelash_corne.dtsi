@@ -295,6 +295,6 @@ nice_view_spi: &spi0 {
         stationary-threshold = <5>;
 
         switch-xy;
-        flip-x;
+        flip-y;
     };
 };
