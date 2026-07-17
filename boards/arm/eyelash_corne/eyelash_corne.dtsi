@@ -14,7 +14,8 @@
 
 #include "eyelash_corne-layouts.dtsi"
 
-#define TPS43_ROTATION_CORRECTION (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)
+#define TPS43_POINTER_CORRECTION (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)
+#define TPS43_SCROLL_CORRECTION INPUT_TRANSFORM_XY_SWAP
 
 / {
     model = "eyelash_corne";
@@ -109,10 +110,10 @@
     tps43_input: tps43_input {
         compatible = "zmk,input-listener";
         device = <&tps43_split>;
-        /* TPS43 is mounted rotated relative to the keyboard. Keep the chip
-         * switch/flip flags off and correct pointer + wheel axes on central. */
-        input-processors = <&zip_xy_transform TPS43_ROTATION_CORRECTION>,
-                           <&zip_scroll_transform TPS43_ROTATION_CORRECTION>;
+        /* TPS43 is mounted rotated relative to the keyboard. Pointer and wheel
+         * share the axis swap, while wheel Y stays uninverted for natural scroll. */
+        input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
+                           <&zip_scroll_transform TPS43_SCROLL_CORRECTION>;
     };
 
 

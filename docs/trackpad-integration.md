@@ -10,7 +10,7 @@
 | 分體角色 | 左半 = central（主控，跑 ZMK Studio）；右半 = peripheral |
 | 觸控板位置 | 右半，接 I2C1（SDA=P1.08、SCL=P0.24、RST=P1.04、RDY=P1.07），位址 `0x74` |
 | 事件轉送 | 右半透過 `zmk,input-split` 將指標事件轉送到左半 central |
-| 方向設定 | Central 端共用 `TPS43_ROTATION_CORRECTION = XY_SWAP \| Y_INVERT`，同時修正游標與雙指捲動軸向 |
+| 方向設定 | Central 端分開校正：游標使用 `XY_SWAP \| Y_INVERT`，捲動使用 `XY_SWAP`，垂直捲動為 macOS 自然手勢 |
 | 手勢 | 單指點擊=左鍵、雙指點擊=右鍵、press-and-hold（250ms）、雙軸捲動；tap 的 press/release 由本地 driver 同步送出 |
 
 ## 架構總覽
@@ -80,20 +80,21 @@ TPS43 (右半 I2C1)
 
 - 晶片端（`tps43` 節點）：不設 `switch-xy` / `flip-x` / `flip-y`
 - Driver 端：保留 `natural-scroll-x` / `natural-scroll-y`，讓捲動內容跟手指方向一致
-- Central 端（`tps43_input` listener）：pointer 和 wheel 共用同一個旋轉修正
+- Central 端（`tps43_input` listener）：pointer 與 wheel 分開校正，因為實測 wheel 的垂直方向不需要 `Y_INVERT`
 
 ```dts
-#define TPS43_ROTATION_CORRECTION (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)
+#define TPS43_POINTER_CORRECTION (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)
+#define TPS43_SCROLL_CORRECTION INPUT_TRANSFORM_XY_SWAP
 
-input-processors = <&zip_xy_transform TPS43_ROTATION_CORRECTION>,
-                   <&zip_scroll_transform TPS43_ROTATION_CORRECTION>;
+input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
+                   <&zip_scroll_transform TPS43_SCROLL_CORRECTION>;
 ```
 
-`zip_xy_transform` 修游標；`zip_scroll_transform` 修 wheel / horizontal wheel。兩者共用同一個常數，避免之後只修到游標卻忘了捲動。預期結果是：手指往上 = 游標往上；手指往右 = 游標往右；雙指往上 = 頁面向下捲動（macOS 自然手勢）。
+`zip_xy_transform` 修游標；`zip_scroll_transform` 修 wheel / horizontal wheel。TPS43 旋轉安裝使兩者都需要 `XY_SWAP`，但實測 wheel 若再加 `Y_INVERT` 會讓捲動反向，因此 scroll 僅保留軸交換。預期結果是：手指往上 = 游標往上；手指往右 = 游標往右；雙指往上 = 頁面向下捲動；雙指往下 = 頁面向上捲動。
 
 ### 未來校正 SOP
 
-方向不對時，一律調 `TPS43_ROTATION_CORRECTION`（**改完刷左半**）。不要先動 `tps43` 節點的 `switch-xy` / `flip-*`，除非要重新做一輪右半晶片暫存器測試。
+游標方向不對時調 `TPS43_POINTER_CORRECTION`；捲動方向不對時調 `TPS43_SCROLL_CORRECTION`（**改完刷左半**）。不要先動 `tps43` 節點的 `switch-xy` / `flip-*`，除非要重新做一輪右半晶片暫存器測試。
 
 1. 做兩個單軸測試：手指往上游標往哪、手指往右游標往哪。
 2. 兩軸都對 → 完成。
@@ -106,7 +107,8 @@ input-processors = <&zip_xy_transform TPS43_ROTATION_CORRECTION>,
 
 | Commit | 內容 |
 |---|---|
-| （未 commit）2026-07-17 | **修正 tap 卡在 mouse button down**：專案內維護 TPS43 driver，tap 同步送出 press/release，並將 central split queue 提高到 64。此修改需左右兩半都刷 |
+| （未 commit）2026-07-17 | **修正自然捲動方向**：pointer 維持 `XY_SWAP \| Y_INVERT`，scroll 改為 `XY_SWAP`；雙指下移時頁面上捲，雙指上移時頁面下捲。此修改只需刷左半 |
+| `7c77a0e` | **修正 tap 卡在 mouse button down**：專案內維護 TPS43 driver，tap 同步送出 press/release，並將 central split queue 提高到 64。此修改需左右兩半都刷 |
 | `57b22d4` | **依最新實測重構 TPS43 方向處理**：新增 `TPS43_ROTATION_CORRECTION = XY_SWAP \| Y_INVERT`，pointer 與 scroll 共用同一個 central 端修正。解決「上→右、右→上、雙指右→頁面下」的軸交換問題。**此修改需刷左半** |
 | `8bc8a9d` | 改為 `zip_xy_transform Y_INVERT` + `zip_scroll_transform Y_INVERT`；實測仍有 X/Y 軸交換，已被上列修改取代 |
 | `a4a669d` 等五筆 | 2026-07-16 當天的方向迭代（晶片旗標 flip-y / switch-xy / flip-x / switch-xy → processor XY_SWAP\|Y_INVERT），最後改由 central processor 統一修正 |
