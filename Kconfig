@@ -1,0 +1,10 @@
+config INPUT_EYELASH_TPS43
+    bool "eyelash_corne TPS43 trackpad driver"
+    default y
+    depends on GPIO
+    depends on I2C
+    depends on INPUT
+    depends on DT_HAS_AZOTEQ_IQS5XX_ENABLED
+    help
+      Build the project-local IQS5xx driver used by the right-half TPS43.
+

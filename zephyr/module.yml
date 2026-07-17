@@ -1,5 +1,6 @@
 build:
   cmake: .
+  kconfig: Kconfig
   depends:
     - zmk-driver-azoteq-iqs5xx
   settings:

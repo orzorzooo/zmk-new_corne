@@ -11,7 +11,7 @@
 | 觸控板位置 | 右半，接 I2C1（SDA=P1.08、SCL=P0.24、RST=P1.04、RDY=P1.07），位址 `0x74` |
 | 事件轉送 | 右半透過 `zmk,input-split` 將指標事件轉送到左半 central |
 | 方向設定 | Central 端共用 `TPS43_ROTATION_CORRECTION = XY_SWAP \| Y_INVERT`，同時修正游標與雙指捲動軸向 |
-| 手勢 | 單指點擊=左鍵、雙指點擊=右鍵、press-and-hold（250ms）、雙軸捲動，保留 driver 端 `natural-scroll-x/y` |
+| 手勢 | 單指點擊=左鍵、雙指點擊=右鍵、press-and-hold（250ms）、雙軸捲動；tap 的 press/release 由本地 driver 同步送出 |
 
 ## 架構總覽
 
@@ -19,7 +19,7 @@
 
 ```
 TPS43 (右半 I2C1)
-  → iqs5xx 驅動（AYM1607/zmk-driver-azoteq-iqs5xx）
+  → 專案內 `tps43_iqs5xx` 驅動（以 AYM1607 driver 為基礎）
   → tps43_split (zmk,input-split, 右半為發送端)
   → BLE split 傳輸
   → tps43_split (左半 central 為接收端)
@@ -32,8 +32,20 @@ TPS43 (右半 I2C1)
 - [boards/arm/eyelash_corne/eyelash_corne.dtsi](../boards/arm/eyelash_corne/eyelash_corne.dtsi) — `tps43` 節點（I2C 裝置、手勢、方向）、`tps43_split`、`tps43_input`
 - [boards/arm/eyelash_corne/eyelash_corne_right.dts](../boards/arm/eyelash_corne/eyelash_corne_right.dts) — 右半啟用 `&i2c1` 與 `&tps43`
 - [boards/arm/eyelash_corne/eyelash_corne_left.dts](../boards/arm/eyelash_corne/eyelash_corne_left.dts) — 左半啟用 i2c1 但 `&tps43` 保持 disabled（實體不在左邊）
-- [config/eyelash_corne.conf](../config/eyelash_corne.conf) — `CONFIG_INPUT=y`、`CONFIG_INPUT_AZOTEQ_IQS5XX=y`、`CONFIG_ZMK_POINTING=y`
-- [config/west.yml](../config/west.yml) — 掛載 `zmk-driver-azoteq-iqs5xx`（AYM1607）與 cormoran 的 ZMK fork（`v0.3-branch+dya`）
+- [src/tps43_iqs5xx.c](../src/tps43_iqs5xx.c) — 專案維護的 TPS43 driver；tap 在同一次事件內送出按下與放開
+- [config/eyelash_corne.conf](../config/eyelash_corne.conf) — 啟用 input/pointing，並停用 dependency 內原始 driver，避免重複註冊裝置
+- [config/west.yml](../config/west.yml) — 固定 AYM1607 dependency commit（提供 DTS binding/Kconfig）與 cormoran 的 ZMK fork（`v0.3-branch+dya`）
+
+## 點擊卡住修正（2026-07-17）
+
+原始 driver 將一次 tap 拆成兩個獨立事件：先送 `BTN_0=1`，再由右半的 delayable work 於 100ms 後送 `BTN_0=0`。同時，這版 cormoran split central 使用有限的 `K_NO_WAIT` queue；事件壅塞時不會重送。若獨立的 release 沒有執行或在 split queue 被丟棄，主機就只收到 mouse button down，直到裝置斷線才會清除。
+
+目前採兩層修正：
+
+1. 專案內 driver 讓單指與雙指 tap 在同一次 TPS43 gesture handler 內依序送出 press/release，不再依賴 peripheral 的 100ms 延遲工作。
+2. 左半 central 將 `CONFIG_ZMK_SPLIT_BLE_CENTRAL_POSITION_QUEUE_SIZE` 提高到 64，替 TPS43 的 X/Y burst 與按鍵事件保留足夠空間。
+
+`press-and-hold` 仍是獨立的持續按下/放開狀態，因此拖曳功能保留，不會被 tap 修正提前放開。
 
 ## 方向設定的原理（背景知識）
 
@@ -94,7 +106,8 @@ input-processors = <&zip_xy_transform TPS43_ROTATION_CORRECTION>,
 
 | Commit | 內容 |
 |---|---|
-| （未 commit）2026-07-17 | **依最新實測重構 TPS43 方向處理**：新增 `TPS43_ROTATION_CORRECTION = XY_SWAP \| Y_INVERT`，pointer 與 scroll 共用同一個 central 端修正。解決「上→右、右→上、雙指右→頁面下」的軸交換問題。**此修改需刷左半** |
+| （未 commit）2026-07-17 | **修正 tap 卡在 mouse button down**：專案內維護 TPS43 driver，tap 同步送出 press/release，並將 central split queue 提高到 64。此修改需左右兩半都刷 |
+| `57b22d4` | **依最新實測重構 TPS43 方向處理**：新增 `TPS43_ROTATION_CORRECTION = XY_SWAP \| Y_INVERT`，pointer 與 scroll 共用同一個 central 端修正。解決「上→右、右→上、雙指右→頁面下」的軸交換問題。**此修改需刷左半** |
 | `8bc8a9d` | 改為 `zip_xy_transform Y_INVERT` + `zip_scroll_transform Y_INVERT`；實測仍有 X/Y 軸交換，已被上列修改取代 |
 | `a4a669d` 等五筆 | 2026-07-16 當天的方向迭代（晶片旗標 flip-y / switch-xy / flip-x / switch-xy → processor XY_SWAP\|Y_INVERT），最後改由 central processor 統一修正 |
 | `ea4238d` | 設定順時針 90 度（保留 `switch-xy`、加 `flip-x`）— 已被上列變更取代 |
@@ -104,11 +117,11 @@ input-processors = <&zip_xy_transform TPS43_ROTATION_CORRECTION>,
 
 ## 驗證步驟（刷機後）
 
-1. 從 GitHub Actions 下載 artifact；這次方向修正在 central input processor，**至少左半必刷**。若不確定右半是否同步，左右兩半都刷。
+1. 從 GitHub Actions 下載 artifact，**左右兩半都刷**：右半包含 tap driver 修正，左半包含 split queue 與方向修正。
 2. 手指在觸控板上「往鍵盤的上方」移動 → 游標應向上；四個方向逐一確認。
 3. 手指往右 → 游標應向右。
 4. 雙指往上 → 頁面應向下捲動（macOS 自然手勢）。
-5. 確認單指點擊（左鍵）、雙指點擊（右鍵）、press-and-hold 拖曳。
+5. 單指連點至少 20 次，確認每次左鍵都會立即放開；再測雙指點擊（右鍵）與 press-and-hold 拖曳。
 
 ## 未來調整建議
 

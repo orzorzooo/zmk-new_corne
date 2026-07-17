@@ -1,8 +1,15 @@
-if(CONFIG_ZMK_DISPLAY AND CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM AND CONFIG_ZMK_SPLIT AND NOT CONFIG_ZMK_SPLIT_ROLE_CENTRAL AND NOT CONFIG_NICE_VIEW_WIDGET_STATUS)
+if(CONFIG_INPUT_EYELASH_TPS43 OR
+   (CONFIG_ZMK_DISPLAY AND CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM AND CONFIG_ZMK_SPLIT AND NOT CONFIG_ZMK_SPLIT_ROLE_CENTRAL AND NOT CONFIG_NICE_VIEW_WIDGET_STATUS))
   zephyr_library()
-  zephyr_library_include_directories(${CMAKE_SOURCE_DIR}/include)
-  zephyr_library_sources(src/corne_screen_status.c)
-  zephyr_library_sources(src/Frame1.c)
-  zephyr_library_sources(src/Frame2.c)
-  zephyr_library_sources(src/Frame3.c)
+
+  # Local TPS43 driver emits each tap's press/release as one paired operation.
+  zephyr_library_sources_ifdef(CONFIG_INPUT_EYELASH_TPS43 src/tps43_iqs5xx.c)
+
+  if(CONFIG_ZMK_DISPLAY AND CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM AND CONFIG_ZMK_SPLIT AND NOT CONFIG_ZMK_SPLIT_ROLE_CENTRAL AND NOT CONFIG_NICE_VIEW_WIDGET_STATUS)
+    zephyr_library_include_directories(${CMAKE_SOURCE_DIR}/include)
+    zephyr_library_sources(src/corne_screen_status.c)
+    zephyr_library_sources(src/Frame1.c)
+    zephyr_library_sources(src/Frame2.c)
+    zephyr_library_sources(src/Frame3.c)
+  endif()
 endif()
