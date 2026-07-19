@@ -101,13 +101,13 @@ input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
 3. 只有左右相反 → 切換 `INPUT_TRANSFORM_X_INVERT`；只有上下相反 → 切換 `INPUT_TRANSFORM_Y_INVERT`。
 4. 差 90 度（上變左右、右變上下）→ 切換 `INPUT_TRANSFORM_XY_SWAP`，重測後用步驟 3 修掉殘餘反向。
 5. 全部相反（180 度）→ 同時切換兩個 INVERT。
-6. 捲動軸向由 driver 固定；如果只有捲動方向反了，可單獨調 DYA `tps43scr` processor 的 `Invert X/Y`。不要對 scroll 開啟 rotation、`XY-Swap` 或 `XY-to-Scroll`。
+6. 捲動軸向由 driver 固定；如果只有捲動方向反了，可單獨調 DYA `tps43s` processor 的 `Invert X/Y`。不要對 scroll 開啟 rotation、`XY-Swap` 或 `XY-to-Scroll`。
 
 ## 異動紀錄（trackpad 分支）
 
 | Commit | 內容 |
 |---|---|
-| （未 commit）2026-07-19 | **修正 DYA scroll runtime 相容性**：移除多餘的 wheel `XY_SWAP`，並將 processor 改名為 `tps43scr` 以避開已保存的不相容 rotation/XY-swap 設定。 |
+| （未 commit）2026-07-19 | **修正 DYA scroll runtime 相容性**：移除多餘的 wheel `XY_SWAP`，並將 processor 改名為 `tps43s` 以避開已保存的不相容 rotation/XY-swap 設定。 |
 | （未 commit）2026-07-17 | **修正自然捲動方向**：pointer 維持 `XY_SWAP \| Y_INVERT`，scroll 改為 `XY_SWAP`；雙指下移時頁面上捲，雙指上移時頁面下捲。此修改只需刷左半 |
 | `7c77a0e` | **修正 tap 卡在 mouse button down**：專案內維護 TPS43 driver，tap 同步送出 press/release，並將 central split queue 提高到 64。此修改需左右兩半都刷 |
 | `57b22d4` | **依最新實測重構 TPS43 方向處理**：新增 `TPS43_ROTATION_CORRECTION = XY_SWAP \| Y_INVERT`，pointer 與 scroll 共用同一個 central 端修正。解決「上→右、右→上、雙指右→頁面下」的軸交換問題。**此修改需刷左半** |
