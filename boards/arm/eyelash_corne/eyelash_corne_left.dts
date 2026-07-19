@@ -6,27 +6,6 @@
 */
 
 #include "eyelash_corne.dtsi"
-#include <input/processors/runtime-input-processor.dtsi>
-
-&mouse_runtime_input_processor {
-    /* The module's fallback is_mod() check avoids truncating encoded ZMK keycodes. */
-    /delete-property/ temp-layer-keep-keycodes;
-};
-
-&scroll_runtime_input_processor {
-    /* A new label avoids loading incompatible persisted scroll rotation/XY-swap settings. */
-    processor-label = "tps43s";
-    scale-multiplier = <3>;
-    scale-divisor = <4>;
-    /delete-property/ temp-layer-keep-keycodes;
-};
-
-&tps43_input {
-    input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
-                       <&zip_scroll_transform TPS43_SCROLL_CORRECTION>,
-                       <&mouse_runtime_input_processor>,
-                       <&scroll_runtime_input_processor>;
-};
 
 &left_encoder {
     status = "okay";

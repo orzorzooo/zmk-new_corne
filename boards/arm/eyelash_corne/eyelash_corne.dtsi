@@ -14,7 +14,7 @@
 
 #include "eyelash_corne-layouts.dtsi"
 
-#define TPS43_POINTER_CORRECTION (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)
+#define TPS43_POINTER_CORRECTION INPUT_TRANSFORM_Y_INVERT
 #define TPS43_SCROLL_CORRECTION 0
 
 / {
@@ -110,9 +110,8 @@
     tps43_input: tps43_input {
         compatible = "zmk,input-listener";
         device = <&tps43_split>;
-        /* Pointer coordinates need mounting correction. Keep wheel axes as emitted
-         * by the driver; runtime scroll rotation/XY swap cannot safely pair its
-         * sparse WHEEL/HWHEEL events. */
+        /* Keep all TPS43 direction correction in this fixed listener so saved
+         * Studio settings cannot alter the baseline pointer or wheel axes. */
         input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
                            <&zip_scroll_transform TPS43_SCROLL_CORRECTION>;
     };

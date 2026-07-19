@@ -10,7 +10,7 @@
 | 分體角色 | 左半 = central（主控，跑 ZMK Studio）；右半 = peripheral |
 | 觸控板位置 | 右半，接 I2C1（SDA=P1.08、SCL=P0.24、RST=P1.04、RDY=P1.07），位址 `0x74` |
 | 事件轉送 | 右半透過 `zmk,input-split` 將指標事件轉送到左半 central |
-| 方向設定 | Central 端分開校正：游標使用 `XY_SWAP \| Y_INVERT`，捲動保留 driver 的 `WHEEL/HWHEEL` 軸，垂直捲動為 macOS 自然手勢 |
+| 方向設定 | Baseline 固定在 central：游標使用 `Y_INVERT`，捲動保留 driver 的 `WHEEL/HWHEEL` 軸，不載入 DYA runtime processor |
 | 手勢 | 單指點擊=左鍵、雙指點擊=右鍵、press-and-hold（250ms）、雙軸捲動；tap 的 press/release 由本地 driver 同步送出 |
 
 ## 架構總覽
@@ -68,29 +68,24 @@ TPS43 (右半 I2C1)
 
 實務上的另一個關鍵點：如果改的是 `switch-xy` / `flip-*`，必須重刷「右半」韌體，因為暫存器初始化發生在觸控板所在的右半。現在本專案改的是 central input processor，所以方向修正主要刷左半生效。
 
-### 目前實測與定案（2026-07-17）
+### Baseline 定案（2026-07-19）
 
-目前韌體在 `zip_xy_transform Y_INVERT` + `zip_scroll_transform Y_INVERT` 下的實測結果：
-
-- 手指往上，游標向右
-- 手指往右，游標向上
-- 雙指向右，頁面向下捲動
-
-這代表游標與 scroll 都還差一個軸交換；而現有 Y 方向修正不能拿掉，否則會回到「上→右、右→下」的舊行為。定案做法：
+為排除固定韌體、DYA runtime transform 與 NVS 持久設定互相覆蓋，baseline 完全移除 `zmk-module-runtime-input-processor`。普通 ZMK Studio、BLE 管理、encoder runtime 與右手自訂 nice!view 保留，但不再能從 DYA Trackball 頁面修改 TPS43。
 
 - 晶片端（`tps43` 節點）：不設 `switch-xy` / `flip-x` / `flip-y`
-- Driver 端：保留 `natural-scroll-x` / `natural-scroll-y`，讓捲動內容跟手指方向一致
-- Central 端（`tps43_input` listener）：pointer 與 wheel 分開校正，因為實測 wheel 的垂直方向不需要 `Y_INVERT`
+- Driver 端：保留 `natural-scroll-x` / `natural-scroll-y`
+- Central 端：只使用固定 `zip_xy_transform` 與 `zip_scroll_transform`
+- 舊 NVS 中的 `input_proc/*` 可以保留，baseline 沒有 runtime device 會讀取它
 
 ```dts
-#define TPS43_POINTER_CORRECTION (INPUT_TRANSFORM_XY_SWAP | INPUT_TRANSFORM_Y_INVERT)
+#define TPS43_POINTER_CORRECTION INPUT_TRANSFORM_Y_INVERT
 #define TPS43_SCROLL_CORRECTION 0
 
 input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
                    <&zip_scroll_transform TPS43_SCROLL_CORRECTION>;
 ```
 
-`zip_xy_transform` 修游標。TPS43 driver 已把垂直手勢送成 `WHEEL`、水平手勢送成 `HWHEEL`，因此 scroll 不再額外交換軸。這版 runtime processor 對 wheel 事件使用 rotation 或 `XY-Swap` 時，會等待不存在的成對事件或把 wheel code 改成 pointer code；scroll runtime processor 只用於縮放與個別軸反向。預期結果是：手指往上 = 游標往上；手指往右 = 游標往右；雙指往上 = 頁面向下捲動；雙指往下 = 頁面向上捲動。
+`Y_INVERT` 是把最近實測中 DYA 的有效游標補償折回單一固定 transform 的第一版基準值。TPS43 driver 已把垂直手勢送成 `WHEEL`、水平手勢送成 `HWHEEL`，因此 scroll 不再額外交換軸。方向若仍需校正，只改這兩個 define 並重刷左半，不再同時調 DYA。
 
 ### 未來校正 SOP
 
@@ -101,13 +96,14 @@ input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
 3. 只有左右相反 → 切換 `INPUT_TRANSFORM_X_INVERT`；只有上下相反 → 切換 `INPUT_TRANSFORM_Y_INVERT`。
 4. 差 90 度（上變左右、右變上下）→ 切換 `INPUT_TRANSFORM_XY_SWAP`，重測後用步驟 3 修掉殘餘反向。
 5. 全部相反（180 度）→ 同時切換兩個 INVERT。
-6. 捲動軸向由 driver 固定；如果只有捲動方向反了，可單獨調 DYA `tps43s` processor 的 `Invert X/Y`。不要對 scroll 開啟 rotation、`XY-Swap` 或 `XY-to-Scroll`。
+6. 捲動軸向由 driver 固定；如果只有捲動方向反了，調整 `natural-scroll-x/y` 或固定 `zip_scroll_transform` 的 invert flag。
 
 ## 異動紀錄（trackpad 分支）
 
 | Commit | 內容 |
 |---|---|
-| （未 commit）2026-07-19 | **修正 DYA scroll runtime 相容性**：移除多餘的 wheel `XY_SWAP`，並將 processor 改名為 `tps43s` 以避開已保存的不相容 rotation/XY-swap 設定。 |
+| （未 commit）2026-07-19 | **建立 baseline 韌體**：移除 TPS43 runtime processor、RPC Kconfig 與 west dependency；方向只由固定 transform 控制。 |
+| `5300abf` | 嘗試修正 DYA scroll runtime 相容性；後續因 runtime rotation、wheel mapping、持久設定及編譯問題改由 baseline 方案取代。 |
 | （未 commit）2026-07-17 | **修正自然捲動方向**：pointer 維持 `XY_SWAP \| Y_INVERT`，scroll 改為 `XY_SWAP`；雙指下移時頁面上捲，雙指上移時頁面下捲。此修改只需刷左半 |
 | `7c77a0e` | **修正 tap 卡在 mouse button down**：專案內維護 TPS43 driver，tap 同步送出 press/release，並將 central split queue 提高到 64。此修改需左右兩半都刷 |
 | `57b22d4` | **依最新實測重構 TPS43 方向處理**：新增 `TPS43_ROTATION_CORRECTION = XY_SWAP \| Y_INVERT`，pointer 與 scroll 共用同一個 central 端修正。解決「上→右、右→上、雙指右→頁面下」的軸交換問題。**此修改需刷左半** |
@@ -120,24 +116,26 @@ input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
 
 ## 驗證步驟（刷機後）
 
-1. 從 GitHub Actions 下載 artifact，**左右兩半都刷**：右半包含 tap driver 修正，左半包含 split queue 與方向修正。
+1. 從 GitHub Actions 下載 `eyelash_corne_baseline_left` artifact 並刷左半；若右半仍是舊於 `7c77a0e` 的韌體，再一起更新右半。
 2. 手指在觸控板上「往鍵盤的上方」移動 → 游標應向上；四個方向逐一確認。
 3. 手指往右 → 游標應向右。
-4. 雙指往上 → 頁面應向下捲動（macOS 自然手勢）。
-5. 單指連點至少 20 次，確認每次左鍵都會立即放開；再測雙指點擊（右鍵）與 press-and-hold 拖曳。
+4. 雙指上下只能垂直捲動；雙指左右只能水平捲動。
+5. 確認 macOS 自然捲動方向符合預期。
+6. 單指連點至少 20 次，確認每次左鍵都會立即放開；再測雙指點擊（右鍵）與 press-and-hold 拖曳。
+7. 左右半重新開機後重測，結果必須相同；baseline 驗證期間不要開 DYA Trackball 頁面。
 
 ## 未來調整建議
 
 ### 短期（實測後很可能要動）
 
-- **游標速度**：目前 `&mmv_input_listener` 掛了 `zip_xy_scaler 2 1`（放大 2 倍），且 keymap 開頭 `ZMK_POINTING_DEFAULT_MOVE_VAL 1200`。若游標太快/太慢，優先調 scaler 比例，例如 `zip_xy_scaler 3 2`（1.5 倍）。
-- **捲動方向與速度**：速度優先調 `zip_scroll_scaler 2 1`；只有方向不順手時才調 `natural-scroll-x/y` 或 `zip_scroll_transform`。
+- **游標速度**：需要時在 `tps43_input` 增加固定 `zip_xy_scaler`，不要使用 `mmv_input_listener` 或 DYA runtime 倍率。
+- **捲動方向與速度**：方向調 `natural-scroll-x/y` 或固定 `zip_scroll_transform`；速度目前由 TPS43 driver 的 `scroll_div` 控制。
 - **點擊誤觸**：打字時手掌容易掃到觸控板的話，調高 `stationary-threshold`（目前 5）或 `bottom-beta`（目前 5），前者是判定「有在移動」的像素門檻。
 - **press-and-hold 時間**：目前 250ms，拖曳視窗覺得太靈敏/太鈍可調 `press-and-hold-time`。
 
 ### 中期（品質提升）
 
-- **依層切換觸控板行為**：專案已掛 `zmk-module-runtime-input-processor`（可在 ZMK Studio 執行期調整 input processor），可以做到例如在 Nav 層把觸控板變成捲動模式（`zip_xy_to_scroll_mapper` 類的 processor）。
+- **DYA 實驗版**：baseline 驗證穩定後另建 `eyelash_corne_left_dya` artifact；runtime processor 先只允許倍率調整，不開 rotation、`XY-Swap` 或 `XY-to-Scroll`。
 - **temp-layer（自動切層）**：加 `zip_temp_layer` 讓「一摸觸控板就切到滑鼠層」，該層放左右鍵與捲動鍵，用完自動跳回，是觸控板鍵盤最常見的 QoL 改善。
 - **省電確認**：觸控板在 I2C 上常駐，實測右半電池消耗；若明顯變耗電，確認 IQS5xx 的 idle/LP 模式有生效（驅動 RDY pin 中斷驅動，理論上待機電流低，但值得量一次）。
 
