@@ -9,6 +9,8 @@
 #include <input/processors/runtime-input-processor.dtsi>
 
 &scroll_runtime_input_processor {
+    /* A new label avoids loading incompatible persisted scroll rotation/XY-swap settings. */
+    processor-label = "tps43scr";
     scale-multiplier = <3>;
     scale-divisor = <4>;
 };
