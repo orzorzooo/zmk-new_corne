@@ -5,6 +5,7 @@
 
 #define DT_DRV_COMPAT azoteq_iqs5xx
 
+#include <errno.h>
 #include <stdlib.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <zephyr/device.h>
@@ -17,6 +18,8 @@
 #include "tps43_iqs5xx.h"
 
 LOG_MODULE_REGISTER(iqs5xx, CONFIG_INPUT_LOG_LEVEL);
+
+static int iqs5xx_setup_device(const struct device *dev);
 
 static int iqs5xx_read_reg16(const struct device *dev, uint16_t reg, uint16_t *val) {
     const struct iqs5xx_config *config = dev->config;
@@ -95,10 +98,28 @@ static void iqs5xx_work_handler(struct k_work *work) {
 
     // Handle reset indication.
     if (sys_info_0 & IQS5XX_SHOW_RESET) {
-        LOG_INF("Device reset detected");
-        // Acknowledge reset.
-        iqs5xx_write_reg8(dev, IQS5XX_SYSTEM_CONTROL_0, IQS5XX_ACK_RESET);
-        goto end_comm;
+        LOG_WRN("Device reset detected; restoring runtime configuration");
+
+        ret = iqs5xx_write_reg8(dev, IQS5XX_SYSTEM_CONTROL_0, IQS5XX_ACK_RESET);
+        if (ret < 0) {
+            LOG_ERR("Failed to acknowledge device reset: %d", ret);
+            goto end_comm;
+        }
+
+        data->scroll_x_acc = 0;
+        data->scroll_y_acc = 0;
+        if (data->active_hold) {
+            input_report_key(dev, LEFT_BUTTON_CODE, 0, true, K_FOREVER);
+            data->active_hold = false;
+        }
+
+        ret = iqs5xx_setup_device(dev);
+        if (ret < 0) {
+            LOG_ERR("Failed to restore device configuration after reset: %d", ret);
+            goto end_comm;
+        }
+
+        return;
     }
 
     bool tp_movement = (sys_info_1 & IQS5XX_TP_MOVEMENT) != 0;
@@ -212,6 +233,46 @@ static void iqs5xx_rdy_handler(const struct device *port, struct gpio_callback *
     k_work_submit(&data->work);
 }
 
+static int iqs5xx_configure_axes(const struct device *dev) {
+    const struct iqs5xx_config *config = dev->config;
+    const uint8_t axis_mask = IQS5XX_FLIP_X | IQS5XX_FLIP_Y | IQS5XX_SWITCH_XY_AXIS;
+    uint8_t expected = 0;
+    int last_error = -EIO;
+
+    expected |= config->flip_x ? IQS5XX_FLIP_X : 0;
+    expected |= config->flip_y ? IQS5XX_FLIP_Y : 0;
+    expected |= config->switch_xy ? IQS5XX_SWITCH_XY_AXIS : 0;
+
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        int ret = iqs5xx_write_reg8(dev, IQS5XX_XY_CONFIG_0, expected);
+        if (ret < 0) {
+            last_error = ret;
+            LOG_WRN("Failed to write axis configuration (attempt %d): %d", attempt, ret);
+            k_msleep(2);
+            continue;
+        }
+
+        uint8_t actual;
+        ret = iqs5xx_read_reg8(dev, IQS5XX_XY_CONFIG_0, &actual);
+        if (ret < 0) {
+            last_error = ret;
+            LOG_WRN("Failed to verify axis configuration (attempt %d): %d", attempt, ret);
+            k_msleep(2);
+            continue;
+        }
+
+        if ((actual & axis_mask) == expected) {
+            return 0;
+        }
+
+        LOG_WRN("Axis configuration mismatch (attempt %d): wrote 0x%02x, read 0x%02x", attempt,
+                expected, actual);
+        k_msleep(2);
+    }
+
+    return last_error;
+}
+
 static int iqs5xx_setup_device(const struct device *dev) {
     const struct iqs5xx_config *config = dev->config;
     int ret;
@@ -276,12 +337,7 @@ static int iqs5xx_setup_device(const struct device *dev) {
         return ret;
     }
 
-    // Configure axes.
-    uint8_t xy_config = 0;
-    xy_config |= config->flip_x ? IQS5XX_FLIP_X : 0;
-    xy_config |= config->flip_y ? IQS5XX_FLIP_Y : 0;
-    xy_config |= config->switch_xy ? IQS5XX_SWITCH_XY_AXIS : 0;
-    ret = iqs5xx_write_reg8(dev, IQS5XX_XY_CONFIG_0, xy_config);
+    ret = iqs5xx_configure_axes(dev);
     if (ret < 0) {
         LOG_ERR("Failed to configure axes: %d", ret);
         return ret;
@@ -356,12 +412,6 @@ static int iqs5xx_init(const struct device *dev) {
         return ret;
     }
 
-    ret = gpio_pin_interrupt_configure_dt(&config->rdy_gpio, GPIO_INT_EDGE_RISING);
-    if (ret < 0) {
-        LOG_ERR("Failed to configure RDY interrupt: %d", ret);
-        return ret;
-    }
-
     // Wait for device to be ready.
     k_msleep(100);
 
@@ -373,6 +423,16 @@ static int iqs5xx_init(const struct device *dev) {
     }
 
     data->initialized = true;
+
+    // Enable events only after setup has finished so reset notifications cannot
+    // race the initial register writes.
+    ret = gpio_pin_interrupt_configure_dt(&config->rdy_gpio, GPIO_INT_EDGE_RISING);
+    if (ret < 0) {
+        data->initialized = false;
+        LOG_ERR("Failed to configure RDY interrupt: %d", ret);
+        return ret;
+    }
+
     LOG_INF("IQS5xx trackpad initialized");
 
     return 0;

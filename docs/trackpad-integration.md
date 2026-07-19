@@ -47,6 +47,18 @@ TPS43 (右半 I2C1)
 
 `press-and-hold` 仍是獨立的持續按下/放開狀態，因此拖曳功能保留，不會被 tap 修正提前放開。
 
+## 開機軸向偶發交換修正（2026-07-19）
+
+TPS43 可能在右半剛開機、刷機或 split 重連附近自行 reset。原本 driver 收到 `SHOW_RESET` 只送出 ACK，沒有重新寫入 `XY_CONFIG_0` 與其他 runtime register；晶片若回到自身預設值，central 的固定 transform 仍會照常執行，但原始 X/Y 已不同，表現就是上下手勢變左右、左右手勢變上下。
+
+目前 driver 在兩個位置防護：
+
+1. RDY interrupt 延後到完整 setup 成功後才啟用，避免晶片剛開機的 reset notification 與初始 register 寫入同時執行。
+2. 初始化寫入 `XY_CONFIG_0` 後立即讀回驗證，不一致或 I2C 暫時失敗時最多重試三次。
+3. 運行中偵測到 `SHOW_RESET` 時，先釋放可能殘留的 drag 狀態，再重新套用手勢、濾波、軸向與 system config。
+
+這個修正位於 TPS43 所在的右半，因此需要更新右半韌體。
+
 ## 方向設定的原理（背景知識）
 
 > 本專案把 TPS43 的安裝方向修正統一放在 central 端 input processor。`tps43` 晶片端不使用 `switch-xy` / `flip-x` / `flip-y`，避免右半晶片暫存器和左半 listener 兩層同時改方向。
@@ -102,6 +114,7 @@ input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
 
 | Commit | 內容 |
 |---|---|
+| （未 commit）2026-07-19 | **修正 TPS43 reset 後軸向偶發交換**：軸向 register 寫入後讀回驗證；偵測晶片 reset 時自動重新初始化。 |
 | （未 commit）2026-07-19 | **建立 baseline 韌體**：移除 TPS43 runtime processor、RPC Kconfig 與 west dependency；方向只由固定 transform 控制。 |
 | `5300abf` | 嘗試修正 DYA scroll runtime 相容性；後續因 runtime rotation、wheel mapping、持久設定及編譯問題改由 baseline 方案取代。 |
 | （未 commit）2026-07-17 | **修正自然捲動方向**：pointer 維持 `XY_SWAP \| Y_INVERT`，scroll 改為 `XY_SWAP`；雙指下移時頁面上捲，雙指上移時頁面下捲。此修改只需刷左半 |
@@ -122,7 +135,7 @@ input-processors = <&zip_xy_transform TPS43_POINTER_CORRECTION>,
 4. 雙指上下只能垂直捲動；雙指左右只能水平捲動。
 5. 確認 macOS 自然捲動方向符合預期。
 6. 單指連點至少 20 次，確認每次左鍵都會立即放開；再測雙指點擊（右鍵）與 press-and-hold 拖曳。
-7. 左右半重新開機後重測，結果必須相同；baseline 驗證期間不要開 DYA Trackball 頁面。
+7. 左右半冷開機、只重啟左半、只重啟右半各測至少三次，方向結果必須相同；baseline 驗證期間不要開 DYA Trackball 頁面。
 
 ## 未來調整建議
 
